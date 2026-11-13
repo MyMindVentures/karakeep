@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 
 type GraphGroup = { id: string; code: string; title: string; type: "project" | "resource" };
 type GraphLink = {
-  id: string; code: string; title: string; url: string | null; updatedAt: string;\n  urlProvenance?: "accepted_url_fact" | "source_reference_only" | "missing";
+  id: string; code: string; title: string; url: string | null; updatedAt: string;
+  urlProvenance?: "accepted_url_fact" | "source_reference_only" | "missing";
   groups: { relationCode: string; predicate: string; entityCode: string; name: string; type: string }[];
 };
 type GraphPage = { source: string; bookmarks: GraphLink[]; hasMore: boolean; error?: string };
@@ -33,12 +34,17 @@ export default function LifeOSGraphBookmarks() {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [groupId, setGroupId] = useState("");
-  const [filter, setFilter] = useState("");\n  const [showArchived, setShowArchived] = useState(false);\n  const [editingId, setEditingId] = useState("");\n  const [editingTitle, setEditingTitle] = useState("");\n  const [mutatingId, setMutatingId] = useState("");
+  const [filter, setFilter] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [editingId, setEditingId] = useState("");
+  const [editingTitle, setEditingTitle] = useState("");
+  const [mutatingId, setMutatingId] = useState("");
 
   const load = useCallback(async (pageNumber = 0) => {
     setLoading(true); setError("");
     try {
-      const response = await fetch(API + "?page=" + pageNumber +\n        "&status=" + (showArchived ? "archived" : "active"), {
+      const response = await fetch(API + "?page=" + pageNumber +
+        "&status=" + (showArchived ? "archived" : "active"), {
         credentials: "same-origin", cache: "no-store",
       });
       const data = await response.json() as GraphPage;
@@ -54,7 +60,7 @@ export default function LifeOSGraphBookmarks() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showArchived]);
 
   useEffect(() => {
     void load();
@@ -79,7 +85,8 @@ export default function LifeOSGraphBookmarks() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: url.trim(), title: title.trim(),
-          // External OIDC may not approve Graph relations. Group selection is\n          // intentionally withheld until the owner-reviewed path is wired.
+          // External OIDC may not approve Graph relations. Group selection is
+          // intentionally withheld until the owner-reviewed path is wired.
           operationId: crypto.randomUUID(),
         }),
       });
@@ -88,7 +95,7 @@ export default function LifeOSGraphBookmarks() {
         throw Error(result.error ?? "Bewaren in Graph is mislukt");
       setMessage(result.status === "existing"
         ? "Deze bookmark bestaat al in Life OS Graph"
-        : "Bookmark en eventuele projectrelatie opgeslagen in Life OS Graph");
+        : "Bookmark opgeslagen in Life OS Graph");
       setUrl(""); setTitle(""); setGroupId("");
       await load();
     } catch (reason) {
@@ -141,8 +148,14 @@ export default function LifeOSGraphBookmarks() {
           <h1 className="text-xl font-semibold">Bookmarks</h1>
           <p className="text-sm text-muted-foreground">{LABEL} · canonieke entities en relaties</p>
         </div>
-        <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}
-          className="min-h-11 gap-2"><RefreshCw size={16}/><span>Vernieuwen</span></Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" className="min-h-11"
+            onClick={() => { setItems([]); setShowArchived(value => !value); }}>
+            {showArchived ? "Actieve bookmarks" : "Archief"}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}
+            className="min-h-11 gap-2"><RefreshCw size={16}/><span>Vernieuwen</span></Button>
+        </div>
       </header>
 
       {!showArchived && <form onSubmit={event => void createBookmark(event)}
@@ -156,7 +169,8 @@ export default function LifeOSGraphBookmarks() {
           maxLength={240} className="min-h-11"/>
         <label className="grid gap-1 text-sm">
           Project of Resource Card (optioneel)
-          <select disabled aria-disabled="true" title="Koppelen vereist goedkeuring in Life OS Graph"\n            className="min-h-11 rounded-md border border-input bg-background px-3"
+          <select disabled aria-disabled="true" title="Koppelen vereist goedkeuring in Life OS Graph"
+            className="min-h-11 rounded-md border border-input bg-background px-3"
             value={groupId} onChange={event => setGroupId(event.target.value)}>
             <option value="">Geen koppeling</option>
             {groups.map(group => <option key={group.id} value={group.id}>
@@ -188,7 +202,9 @@ export default function LifeOSGraphBookmarks() {
             <span className="break-all text-xs text-muted-foreground">{item.code}</span>
             {item.url
               ? <span className="truncate text-xs text-muted-foreground">{item.url}</span>
-              : <span className="text-xs text-muted-foreground">URL ontbreekt in de Graph-observaties</span>}\n            {item.urlProvenance === "source_reference_only" &&\n              <span className="text-xs text-amber-600">URL alleen uit oorspronkelijke bronverwijzing; canoniek URL-feit nog niet geregistreerd</span>}
+              : <span className="text-xs text-muted-foreground">URL ontbreekt in de Graph-observaties</span>}
+            {item.urlProvenance === "source_reference_only" &&
+              <span className="text-xs text-amber-600">URL alleen uit oorspronkelijke bronverwijzing; canoniek URL-feit nog niet geregistreerd</span>}
             {editingId === item.id && !showArchived && <form
               onSubmit={event => { event.preventDefault(); void editBookmark(item, "rename"); }}
               className="grid gap-2">
