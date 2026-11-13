@@ -181,7 +181,7 @@ export default function LifeOSGraphBookmarks() {
         <Button disabled={saving || !url.trim()} type="submit" className="min-h-11">
           {saving ? "Bewaren…" : "Bewaar rechtstreeks in Graph"}
         </Button>
-      </form>
+      </form>}
 
       <Input type="search" placeholder="Zoeken in geladen Graph-bookmarks"
         aria-label="Zoeken" value={filter}
