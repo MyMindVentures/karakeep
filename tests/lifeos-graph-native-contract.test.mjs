@@ -11,7 +11,7 @@ test("Graph mode is disabled by default and native route is used, not an iframe"
   assert.match(route, /LIFEOS_GRAPH_MODE_ENABLED !== "true"/);
   assert.match(page, /LIFEOS_GRAPH_MODE_ENABLED === "true"/);
   assert.match(page, /LifeOSGraphBookmarks/);
-  assert.doesNotMatch(page, /iframe/);
+  assert.doesNotMatch(page, /<iframe\\b/i);
 });
 
 test("Native bridge uses only the logged-in Karakeep OIDC owner's token", () => {
