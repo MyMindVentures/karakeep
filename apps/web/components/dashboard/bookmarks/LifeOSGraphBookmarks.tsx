@@ -79,7 +79,7 @@ export default function LifeOSGraphBookmarks() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: url.trim(), title: title.trim(),
-          ...(groupId ? { groupId } : {}),
+          // External OIDC may not approve Graph relations. Group selection is\n          // intentionally withheld until the owner-reviewed path is wired.
           operationId: crypto.randomUUID(),
         }),
       });
@@ -156,7 +156,7 @@ export default function LifeOSGraphBookmarks() {
           maxLength={240} className="min-h-11"/>
         <label className="grid gap-1 text-sm">
           Project of Resource Card (optioneel)
-          <select className="min-h-11 rounded-md border border-input bg-background px-3"
+          <select disabled aria-disabled="true" title="Koppelen vereist goedkeuring in Life OS Graph"\n            className="min-h-11 rounded-md border border-input bg-background px-3"
             value={groupId} onChange={event => setGroupId(event.target.value)}>
             <option value="">Geen koppeling</option>
             {groups.map(group => <option key={group.id} value={group.id}>
