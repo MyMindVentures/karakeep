@@ -74,7 +74,8 @@ async function forward(request: NextRequest, verb: GraphVerb) {
     : groups ? "/api/integrations/karakeep/graph/groups"
       : "/api/integrations/karakeep/graph", origin);
   let body: string | undefined;
-  if (verb === "GET" && !groups) {
+  if (verb === "GET") {
+    if (!groups) {
     const page = request.nextUrl.searchParams.get("page") ?? "0";
     if (!/^(0|[1-9][0-9]{0,2})$/.test(page) || Number(page) > 999)
       return json({ error: "INVALID_PAGE" }, 400);
@@ -83,6 +84,7 @@ async function forward(request: NextRequest, verb: GraphVerb) {
     if (!["active", "archived"].includes(status))
       return json({ error: "INVALID_STATUS" }, 400);
     target.searchParams.set("status", status);
+    }
   } else {
     const raw = await request.text();
     if (raw.length > 8_192) return json({ error: "BODY_TOO_LARGE" }, 413);
