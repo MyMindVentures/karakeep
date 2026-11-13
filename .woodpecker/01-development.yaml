@@ -5,15 +5,16 @@ when:
   - event: [push, pull_request, manual]
 steps:
   graph-contract:
-    image: node:22-bookworm
+    image: bash
     commands:
       - set -eu
+      - command -v node
       - node --test tests/lifeos-graph-native-contract.test.mjs
   native-quality:
-    image: node:22-bookworm
+    image: bash
     commands:
       - set -eu
-      - corepack enable
+      - command -v corepack
       - corepack pnpm install --frozen-lockfile
       - corepack pnpm --filter @karakeep/web typecheck
       - corepack pnpm --filter @karakeep/web lint
