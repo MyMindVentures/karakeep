@@ -1,0 +1,21 @@
+# Life OS canonical CI: Woodpecker (no GitHub Actions).
+# This fork is not yet approved for deploy. Do not add release steps,
+# secrets, network-trusted containers or volume mounts here.
+when:
+  - event: [push, pull_request, manual]
+steps:
+  graph-contract:
+    image: bash
+    commands:
+      - set -eu
+      - command -v node
+      - node --test tests/lifeos-graph-native-contract.test.mjs
+  native-quality:
+    image: bash
+    commands:
+      - set -eu
+      - command -v corepack
+      - corepack pnpm install --frozen-lockfile --prefer-offline --filter '@karakeep/web...' --filter '@karakeep/trpc...'
+      - corepack pnpm --filter @karakeep/web typecheck
+      - corepack pnpm --filter @karakeep/web lint
+      - corepack pnpm --filter @karakeep/trpc typecheck

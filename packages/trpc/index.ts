@@ -99,6 +99,20 @@ export const createCallerFactory = t.createCallerFactory;
 // Base router and procedure helpers
 export const router = t.router;
 export const procedure = t.procedure
+  // In Life OS Graph authority mode, legacy SQLite bookmark/tag/list
+  // mutations are forbidden. The first-party Graph write endpoint is the
+  // ONLY allowed mutation path for canonical bookmark data.
+  .use(function rejectLegacyBookmarkWritesInGraphMode(opts) {
+    if (process.env.LIFEOS_GRAPH_MODE_ENABLED === "true" &&
+        opts.type === "mutation" &&
+        /^(bookmarks|tags|lists)\./.test(opts.path)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Canonical bookmark data is managed by Life OS Graph",
+      });
+    }
+    return opts.next();
+  })
   .use(function rejectMutationsInReadOnlyModes(opts) {
     if (opts.type !== "mutation") {
       return opts.next();
