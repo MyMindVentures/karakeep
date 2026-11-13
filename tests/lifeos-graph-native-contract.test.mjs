@@ -5,6 +5,7 @@ const read = p => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const route = read("apps/web/app/api/lifeos-graph/bookmarks/route.ts");
 const page = read("apps/web/app/dashboard/bookmarks/page.tsx");
 const view = read("apps/web/components/dashboard/bookmarks/LifeOSGraphBookmarks.tsx");
+const trpc = read("packages/trpc/index.ts");
 
 test("Graph mode is disabled by default and native route is used, not an iframe", () => {
   assert.match(route, /LIFEOS_GRAPH_MODE_ENABLED !== "true"/);
@@ -38,4 +39,11 @@ test("Visible Karakeep bookmarks are sourced from Graph and real edge codes", ()
   assert.match(view, /crypto\.randomUUID\(\)/);
   assert.match(view, /method: "POST"/);
   assert.doesNotMatch(view, /setInterval|cron\.|KARAKEEP_API_KEY|SUPABASE_SERVICE_ROLE|iframe/);
+});
+
+test("Graph mode rejects legacy SQLite bookmark/tag/list mutations rather than dual-writing", () => {
+  assert.match(trpc, /rejectLegacyBookmarkWritesInGraphMode/);
+  assert.match(trpc, /LIFEOS_GRAPH_MODE_ENABLED === "true"/);
+  assert.match(trpc, /bookmarks\|tags\|lists/);
+  assert.match(trpc, /Canonical bookmark data is managed by Life OS Graph/);
 });
