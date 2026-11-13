@@ -67,11 +67,13 @@ async function forward(request: NextRequest, verb: GraphVerb) {
 
   // Do not accept an upstream destination, bearer token, identity, or owner
   // override from browser input. Only bounded, validated query parameters.
-  const target = new URL(verb === "GET"
-    ? "/api/integrations/karakeep/graph"
-    : "/api/integrations/karakeep/graph/create", origin);
+  const groups = verb === "GET" && request.nextUrl.searchParams.get("kind") === "groups";
+  const target = new URL(verb === "POST"
+    ? "/api/integrations/karakeep/graph/create"
+    : groups ? "/api/integrations/karakeep/graph/groups"
+      : "/api/integrations/karakeep/graph", origin);
   let body: string | undefined;
-  if (verb === "GET") {
+  if (verb === "GET" && !groups) {
     const page = request.nextUrl.searchParams.get("page") ?? "0";
     if (!/^(0|[1-9][0-9]{0,2})$/.test(page) || Number(page) > 999)
       return json({ error: "INVALID_PAGE" }, 400);
