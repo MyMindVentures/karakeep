@@ -12,7 +12,7 @@ const json = (data: Record<string, unknown>, status = 200) =>
     status, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" },
   });
 
-type GraphVerb = "GET" | "POST";
+type GraphVerb = "GET" | "POST" | "PATCH";
 
 function lifeOsGraphOrigin(): string | null {
   const configured = process.env.LIFEOS_GRAPH_ORIGIN;
@@ -48,7 +48,7 @@ async function forward(request: NextRequest, verb: GraphVerb) {
   const session = await getServerAuthSession();
   if (!session?.user?.id) return json({ error: "UNAUTHENTICATED" }, 401);
 
-  if (verb === "POST") {
+  if (verb !== "GET") {
     const allowedOrigin = new URL(request.url).origin;
     if (request.headers.get("origin") !== allowedOrigin ||
         request.headers.get("sec-fetch-site") === "cross-site")
@@ -68,8 +68,9 @@ async function forward(request: NextRequest, verb: GraphVerb) {
   // Do not accept an upstream destination, bearer token, identity, or owner
   // override from browser input. Only bounded, validated query parameters.
   const groups = verb === "GET" && request.nextUrl.searchParams.get("kind") === "groups";
-  const target = new URL(verb === "POST"
-    ? "/api/integrations/karakeep/graph/create"
+  const target = new URL(verb === "PATCH"
+    ? "/api/integrations/karakeep/graph/edit"
+    : verb === "POST" ? "/api/integrations/karakeep/graph/create"
     : groups ? "/api/integrations/karakeep/graph/groups"
       : "/api/integrations/karakeep/graph", origin);
   let body: string | undefined;
@@ -94,7 +95,7 @@ async function forward(request: NextRequest, verb: GraphVerb) {
       headers: {
         Authorization: "Bearer " + account.accessToken,
         Accept: "application/json",
-        ...(verb === "POST" ? { "Content-Type": "application/json" } : {}),
+        ...(verb !== "GET" ? { "Content-Type": "application/json" } : {}),
       },
       body, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(10_000),
     });
@@ -111,3 +112,5 @@ async function forward(request: NextRequest, verb: GraphVerb) {
 
 export async function GET(request: NextRequest) { return forward(request, "GET"); }
 export async function POST(request: NextRequest) { return forward(request, "POST"); }
+
+export async function PATCH(request: NextRequest) { return forward(request, "PATCH"); }
