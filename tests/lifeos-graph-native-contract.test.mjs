@@ -55,7 +55,7 @@ test("The Graph read view offers only supported controls", () => {
 });
 
 test("The dashboard permits only the configured HTTPS parent in Graph mode", () => {
-  const config = read("apps/web/next.config.mjs");
+  const config = read("apps/web/proxy.ts");
   assert.match(config, /frameAncestor = "'none'"/);
   assert.match(config, /url\.origin === parent && url\.protocol === "https:"/);
   assert.match(config, /"frame-ancestors " \+ frameAncestor/);
