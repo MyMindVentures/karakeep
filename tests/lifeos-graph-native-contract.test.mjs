@@ -24,22 +24,15 @@ test("Native bridge uses only the logged-in Karakeep OIDC owner's token", () => 
   assert.doesNotMatch(route, /SUPABASE_SECRET_KEY|service_role|localStorage|window\.location/);
 });
 
-test("Native bridge permits Graph-only CRUD and disallows cross-origin writes", () => {
-  assert.match(route, /CSRF_DENIED/);
-  assert.match(route, /new URL\(serverConfig\.publicUrl\)\.origin/);
-  assert.doesNotMatch(route, /new URL\(request\.url\)\.origin/);
-  assert.match(route, /request\.headers\.get\("origin"\)/);
-  assert.match(route, /"POST"/);
-  assert.match(route, /"GRAPH_REQUEST_DENIED"/);
-  assert.doesNotMatch(route, /\.from\("bookmarks"\)|\.insert\(bookmarks|\.delete\(bookmarks/);
+test("Native bridge only exposes read operations", () => {
+  assert.match(route, /export async function GET/);
+  assert.doesNotMatch(route, /export async function (POST|PATCH)|\/graph\/(create|edit)/);
+  assert.match(route, /GRAPH_REQUEST_DENIED/);
 });
 
 test("Visible Karakeep bookmarks are sourced from Graph and real edge codes", () => {
   assert.match(view, /\/api\/lifeos-graph\/bookmarks/);
   assert.match(view, /relationCode/);
-  assert.match(view, /groupId/);
-  assert.match(view, /crypto\.randomUUID\(\)/);
-  assert.match(view, /method: "POST"/);
   assert.doesNotMatch(view, /setInterval|cron\.|KARAKEEP_API_KEY|SUPABASE_SERVICE_ROLE|iframe/);
 });
 
@@ -56,9 +49,14 @@ test("native Graph view contains no escaped-newline source corruption", () => {
   assert.match(view, /\[showArchived\]\);/);
   assert.match(view, /status=/);
 });
-test("native Graph edits remain reversible and project writes stay review-gated", () => {
-  assert.match(view, /method: "PATCH"/);
-  assert.match(view, /"rename" \| "archive" \| "restore"/);
-  assert.match(view, /<select disabled aria-disabled="true"/);
-  assert.doesNotMatch(view, /\{ groupId \}|\{\.\.\.\(groupId/);
+test("The Graph read view offers only supported controls", () => {
+  assert.doesNotMatch(view, /method: "(POST|PATCH)"|Wijzig titel|Bookmark bewaren/);
+  assert.match(view, /showArchived/);
+});
+
+test("The dashboard permits only the configured HTTPS parent in Graph mode", () => {
+  const config = read("apps/web/next.config.mjs");
+  assert.match(config, /frameAncestor = "'none'"/);
+  assert.match(config, /url\.origin === parent && url\.protocol === "https:"/);
+  assert.match(config, /"frame-ancestors " \+ frameAncestor/);
 });

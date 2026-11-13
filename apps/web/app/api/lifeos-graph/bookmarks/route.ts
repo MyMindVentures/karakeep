@@ -3,7 +3,6 @@ import { and, eq } from "drizzle-orm";
 import { accounts } from "@karakeep/db/schema";
 import { db } from "@karakeep/db";
 import { getServerAuthSession } from "@/server/auth";
-import serverConfig from "@karakeep/shared/config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,7 +12,6 @@ const json = (data: Record<string, unknown>, status = 200) =>
     status, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" },
   });
 
-type GraphVerb = "GET" | "POST" | "PATCH";
 
 function lifeOsGraphOrigin(): string | null {
   const configured = process.env.LIFEOS_GRAPH_ORIGIN;
@@ -40,7 +38,7 @@ function lifeOsGraphOrigin(): string | null {
  * This adapter is fail-closed and disabled unless explicitly enabled after
  * integration testing; no SQLite bookmark writes take place here.
  */
-async function forward(request: NextRequest, verb: GraphVerb) {
+export async function GET(request: NextRequest) {
   if (process.env.LIFEOS_GRAPH_MODE_ENABLED !== "true")
     return json({ error: "GRAPH_MODE_DISABLED" }, 404);
   const origin = lifeOsGraphOrigin();
@@ -48,15 +46,6 @@ async function forward(request: NextRequest, verb: GraphVerb) {
 
   const session = await getServerAuthSession();
   if (!session?.user?.id) return json({ error: "UNAUTHENTICATED" }, 401);
-
-  if (verb !== "GET") {
-    const allowedOrigin = new URL(serverConfig.publicUrl).origin;
-    if (request.headers.get("origin") !== allowedOrigin ||
-        request.headers.get("sec-fetch-site") === "cross-site")
-      return json({ error: "CSRF_DENIED" }, 403);
-    if (!request.headers.get("content-type")?.startsWith("application/json"))
-      return json({ error: "JSON_REQUIRED" }, 415);
-  }
 
   const account = await db.query.accounts.findFirst({
     where: and(eq(accounts.userId, session.user.id), eq(accounts.providerId, "custom")),
@@ -68,43 +57,20 @@ async function forward(request: NextRequest, verb: GraphVerb) {
 
   // Do not accept an upstream destination, bearer token, identity, or owner
   // override from browser input. Only bounded, validated query parameters.
-  const groups = verb === "GET" && request.nextUrl.searchParams.get("kind") === "groups";
-  const target = new URL(verb === "PATCH"
-    ? "/api/integrations/karakeep/graph/edit"
-    : verb === "POST" ? "/api/integrations/karakeep/graph/create"
-    : groups ? "/api/integrations/karakeep/graph/groups"
-      : "/api/integrations/karakeep/graph", origin);
-  let body: string | undefined;
-  if (verb === "GET") {
-    if (!groups) {
-    const page = request.nextUrl.searchParams.get("page") ?? "0";
-    if (!/^(0|[1-9][0-9]{0,2})$/.test(page) || Number(page) > 999)
-      return json({ error: "INVALID_PAGE" }, 400);
-    target.searchParams.set("page", page);
-    const status = request.nextUrl.searchParams.get("status") ?? "active";
-    if (!["active", "archived"].includes(status))
-      return json({ error: "INVALID_STATUS" }, 400);
-    target.searchParams.set("status", status);
-    }
-  } else {
-    const raw = await request.text();
-    if (raw.length > 8_192) return json({ error: "BODY_TOO_LARGE" }, 413);
-    try {
-      const parsed: unknown = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-        return json({ error: "INVALID_BODY" }, 400);
-    } catch { return json({ error: "INVALID_JSON" }, 400); }
-    body = raw;
-  }
+  const target = new URL("/api/integrations/karakeep/graph", origin);
+  const page = request.nextUrl.searchParams.get("page") ?? "0";
+  if (!/^(0|[1-9][0-9]{0,2})$/.test(page)) return json({ error: "INVALID_PAGE" }, 400);
+  const status = request.nextUrl.searchParams.get("status") ?? "active";
+  if (!["active", "archived"].includes(status)) return json({ error: "INVALID_STATUS" }, 400);
+  target.searchParams.set("page", page);
+  target.searchParams.set("status", status);
   try {
     const upstream = await fetch(target, {
-      method: verb,
       headers: {
         Authorization: "Bearer " + account.accessToken,
         Accept: "application/json",
-        ...(verb !== "GET" ? { "Content-Type": "application/json" } : {}),
       },
-      body, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(10_000),
+      redirect: "error", cache: "no-store", signal: AbortSignal.timeout(10_000),
     });
     // No token, headers, or opaque upstream errors are returned to the browser.
     const payload: unknown = await upstream.json();
@@ -116,8 +82,3 @@ async function forward(request: NextRequest, verb: GraphVerb) {
     return json({ error: "GRAPH_UPSTREAM_UNAVAILABLE" }, 502);
   }
 }
-
-export async function GET(request: NextRequest) { return forward(request, "GET"); }
-export async function POST(request: NextRequest) { return forward(request, "POST"); }
-
-export async function PATCH(request: NextRequest) { return forward(request, "PATCH"); }

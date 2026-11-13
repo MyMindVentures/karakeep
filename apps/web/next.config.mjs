@@ -23,7 +23,22 @@ const nextConfig = {
     return config;
   },
   async headers() {
+    const parent = process.env.LIFEOS_GRAPH_ORIGIN;
+    let frameAncestor = "'none'";
+    if (process.env.LIFEOS_GRAPH_MODE_ENABLED === "true" && parent) {
+      try {
+        const url = new URL(parent);
+        if (url.origin === parent && url.protocol === "https:" && !url.port)
+          frameAncestor = url.origin;
+      } catch {
+        // Invalid configuration cannot enable framing.
+      }
+    }
     return [
+      {
+        source: "/dashboard/:path*",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors " + frameAncestor }],
+      },
       {
         // Routes this applies to
         source: "/api/(.*)",
