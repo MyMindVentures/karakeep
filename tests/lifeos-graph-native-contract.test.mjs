@@ -26,6 +26,8 @@ test("Native bridge uses only the logged-in Karakeep OIDC owner's token", () => 
 
 test("Native bridge permits Graph-only CRUD and disallows cross-origin writes", () => {
   assert.match(route, /CSRF_DENIED/);
+  assert.match(route, /new URL\(serverConfig\.publicUrl\)\.origin/);
+  assert.doesNotMatch(route, /new URL\(request\.url\)\.origin/);
   assert.match(route, /request\.headers\.get\("origin"\)/);
   assert.match(route, /"POST"/);
   assert.match(route, /"GRAPH_REQUEST_DENIED"/);

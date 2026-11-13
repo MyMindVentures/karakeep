@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { accounts } from "@karakeep/db/schema";
 import { db } from "@karakeep/db";
 import { getServerAuthSession } from "@/server/auth";
+import serverConfig from "@karakeep/shared/config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,7 +50,7 @@ async function forward(request: NextRequest, verb: GraphVerb) {
   if (!session?.user?.id) return json({ error: "UNAUTHENTICATED" }, 401);
 
   if (verb !== "GET") {
-    const allowedOrigin = new URL(request.url).origin;
+    const allowedOrigin = new URL(serverConfig.publicUrl).origin;
     if (request.headers.get("origin") !== allowedOrigin ||
         request.headers.get("sec-fetch-site") === "cross-site")
       return json({ error: "CSRF_DENIED" }, 403);
