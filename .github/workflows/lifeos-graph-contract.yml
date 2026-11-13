@@ -1,0 +1,24 @@
+name: Life OS Graph native Karakeep contracts
+on:
+  push:
+    branches: [feat/lifeos-graph-native-20261113]
+  pull_request:
+    paths:
+      - 'apps/web/app/api/lifeos-graph/**'
+      - 'apps/web/components/dashboard/bookmarks/LifeOSGraphBookmarks.tsx'
+      - 'apps/web/app/dashboard/bookmarks/page.tsx'
+      - 'tests/lifeos-graph-native-contract.test.mjs'
+      - '.github/workflows/lifeos-graph-contract.yml'
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native Graph-only owner session and read/write contract
+        run: node --test tests/lifeos-graph-native-contract.test.mjs
