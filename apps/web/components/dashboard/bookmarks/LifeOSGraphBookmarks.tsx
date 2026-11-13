@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 
 type GraphGroup = { id: string; code: string; title: string; type: "project" | "resource" };
 type GraphLink = {
-  id: string; code: string; title: string; url: string | null; updatedAt: string;
+  id: string; code: string; title: string; url: string | null; updatedAt: string;\n  urlProvenance?: "accepted_url_fact" | "source_reference_only" | "missing";
   groups: { relationCode: string; predicate: string; entityCode: string; name: string; type: string }[];
 };
 type GraphPage = { source: string; bookmarks: GraphLink[]; hasMore: boolean; error?: string };
@@ -33,12 +33,12 @@ export default function LifeOSGraphBookmarks() {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [groupId, setGroupId] = useState("");
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState("");\n  const [showArchived, setShowArchived] = useState(false);\n  const [editingId, setEditingId] = useState("");\n  const [editingTitle, setEditingTitle] = useState("");\n  const [mutatingId, setMutatingId] = useState("");
 
   const load = useCallback(async (pageNumber = 0) => {
     setLoading(true); setError("");
     try {
-      const response = await fetch(API + "?page=" + pageNumber, {
+      const response = await fetch(API + "?page=" + pageNumber +\n        "&status=" + (showArchived ? "archived" : "active"), {
         credentials: "same-origin", cache: "no-store",
       });
       const data = await response.json() as GraphPage;
@@ -98,6 +98,35 @@ export default function LifeOSGraphBookmarks() {
     }
   }
 
+  async function editBookmark(item: GraphLink, action: "rename" | "archive" | "restore") {
+    if (mutatingId) return;
+    if (action === "archive" && !window.confirm("Bookmark archiveren? Alle Graph-bronnen en relaties blijven behouden.")) return;
+    if (action === "rename" && (!editingTitle.trim() || editingTitle.trim().length > 240)) {
+      setError("Een geldige titel is vereist"); return;
+    }
+    setMutatingId(item.id); setError(""); setMessage("");
+    try {
+      const response = await fetch(API, {
+        method: "PATCH", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: item.id, action, expectedUpdatedAt: item.updatedAt,
+          operationId: crypto.randomUUID(),
+          ...(action === "rename" ? { title: editingTitle.trim() } : {}),
+        }),
+      });
+      const data = await response.json() as { status?: string; error?: string };
+      if (!response.ok || !["renamed", "archived", "active"].includes(data.status ?? ""))
+        throw Error(data.error ?? "Graph-update mislukt");
+      setEditingId(""); setEditingTitle("");
+      setMessage(action === "rename" ? "Titel gewijzigd in Life OS Graph" :
+        action === "archive" ? "Bookmark veilig gearchiveerd" : "Bookmark hersteld");
+      await load(0);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Graph-update mislukt");
+    } finally { setMutatingId(""); }
+  }
+
   const visible = items.filter(item => {
     const needle = filter.trim().toLowerCase();
     return !needle || [item.title, item.url ?? "", item.code,
@@ -116,7 +145,7 @@ export default function LifeOSGraphBookmarks() {
           className="min-h-11 gap-2"><RefreshCw size={16}/><span>Vernieuwen</span></Button>
       </header>
 
-      <form onSubmit={event => void createBookmark(event)}
+      {!showArchived && <form onSubmit={event => void createBookmark(event)}
         className="grid gap-3 rounded-xl border border-border bg-card p-4">
         <h2 className="flex items-center gap-2 font-medium"><Plus size={17}/> Bookmark bewaren</h2>
         <Input required type="url" placeholder="https://example.com" aria-label="URL"
@@ -159,7 +188,30 @@ export default function LifeOSGraphBookmarks() {
             <span className="break-all text-xs text-muted-foreground">{item.code}</span>
             {item.url
               ? <span className="truncate text-xs text-muted-foreground">{item.url}</span>
-              : <span className="text-xs text-muted-foreground">URL ontbreekt in de Graph-observaties</span>}
+              : <span className="text-xs text-muted-foreground">URL ontbreekt in de Graph-observaties</span>}\n            {item.urlProvenance === "source_reference_only" &&\n              <span className="text-xs text-amber-600">URL alleen uit oorspronkelijke bronverwijzing; canoniek URL-feit nog niet geregistreerd</span>}
+            {editingId === item.id && !showArchived && <form
+              onSubmit={event => { event.preventDefault(); void editBookmark(item, "rename"); }}
+              className="grid gap-2">
+              <Input value={editingTitle} maxLength={240}
+                aria-label="Nieuwe titel" onChange={event => setEditingTitle(event.target.value)}
+                className="min-h-11"/>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" className="min-h-11" disabled={!!mutatingId}>Titel opslaan</Button>
+                <Button type="button" variant="outline" className="min-h-11"
+                  onClick={() => setEditingId("")}>Annuleren</Button>
+              </div>
+            </form>}
+            <div className="flex flex-wrap gap-2">
+              {!showArchived && editingId !== item.id && <Button
+                type="button" variant="outline" className="min-h-11" disabled={!!mutatingId}
+                onClick={() => { setEditingId(item.id); setEditingTitle(item.title); }}>
+                Wijzig titel
+              </Button>}
+              <Button type="button" variant="outline" className="min-h-11" disabled={!!mutatingId}
+                onClick={() => void editBookmark(item, showArchived ? "restore" : "archive")}>
+                {showArchived ? "Herstellen" : "Archiveren"}
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-1">
               {item.groups.map(group => <span key={group.relationCode}
                 className="rounded-md border border-border px-2 py-1 text-xs"
