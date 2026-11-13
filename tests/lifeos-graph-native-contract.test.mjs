@@ -47,3 +47,16 @@ test("Graph mode rejects legacy SQLite bookmark/tag/list mutations rather than d
   assert.match(trpc, /bookmarks\|tags\|lists/);
   assert.match(trpc, /Canonical bookmark data is managed by Life OS Graph/);
 });
+
+test("native Graph view contains no escaped-newline source corruption", () => {
+  assert.doesNotMatch(view, /\\\\n/);
+  assert.match(view, /\[showArchived\]/);
+  assert.match(view, /\[showArchived\]\);/);
+  assert.match(view, /status=/);
+});
+test("native Graph edits remain reversible and project writes stay review-gated", () => {
+  assert.match(view, /method: "PATCH"/);
+  assert.match(view, /"rename" \| "archive" \| "restore"/);
+  assert.match(view, /<select disabled aria-disabled="true"/);
+  assert.doesNotMatch(view, /\{ groupId \}|\{\.\.\.\(groupId/);
+});
