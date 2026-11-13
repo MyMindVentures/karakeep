@@ -5,14 +5,14 @@ import { ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type GraphGroup = { id: string; code: string; title: string; type: "project" | "resource" };
-type GraphLink = {
+interface GraphGroup { id: string; code: string; title: string; type: "project" | "resource" }
+interface GraphLink {
   id: string; code: string; title: string; url: string | null; updatedAt: string;
   urlProvenance?: "accepted_url_fact" | "source_reference_only" | "missing";
   groups: { relationCode: string; predicate: string; entityCode: string; name: string; type: string }[];
 };
-type GraphPage = { source: string; bookmarks: GraphLink[]; hasMore: boolean; error?: string };
-type GroupPage = { source: string; groups: GraphGroup[]; truncated: boolean; error?: string };
+interface GraphPage { source: string; bookmarks: GraphLink[]; hasMore: boolean; error?: string }
+interface GroupPage { source: string; groups: GraphGroup[]; truncated: boolean; error?: string }
 
 const API = "/api/lifeos-graph/bookmarks";
 const LABEL = "Life OS Graph";
@@ -71,7 +71,11 @@ export default function LifeOSGraphBookmarks() {
       const data = await response.json() as GroupPage;
       if (response.ok && data.source === "lifeos_graph" && Array.isArray(data.groups))
         setGroups(data.groups);
-    }).catch(() => {});
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setError(error instanceof Error ? error.message : "Graph-groepen ophalen mislukt");
+      }
+    });
     return () => controller.abort();
   }, [load]);
 
